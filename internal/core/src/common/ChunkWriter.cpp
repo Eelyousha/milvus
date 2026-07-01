@@ -573,6 +573,12 @@ create_chunk_writer(const FieldMeta& field_meta) {
         case milvus::DataType::TIMESTAMPTZ:
             return std::make_shared<ChunkWriter<arrow::Int64Array, int64_t>>(
                 dim, nullable);
+        case milvus::DataType::DATE: // ~ponytail
+            return std::make_shared<
+                ChunkWriter<arrow::Date32Array, int32_t>>(dim, nullable);
+        case milvus::DataType::TIME: // ~ponytail
+            return std::make_shared<
+                ChunkWriter<arrow::Time64Array, int64_t>>(dim, nullable);
         case milvus::DataType::VECTOR_FLOAT:
             if (nullable) {
                 return std::make_shared<
@@ -705,6 +711,22 @@ make_chunk(const FieldMeta& field_meta,
                                                      nullable,
                                                      chunk_mmap_guard);
         case milvus::DataType::TIMESTAMPTZ:
+            return std::make_unique<FixedWidthChunk>(row_nums,
+                                                     dim,
+                                                     data,
+                                                     size,
+                                                     sizeof(int64_t),
+                                                     nullable,
+                                                     chunk_mmap_guard);
+        case milvus::DataType::DATE: // ~ponytail
+            return std::make_unique<FixedWidthChunk>(row_nums,
+                                                     dim,
+                                                     data,
+                                                     size,
+                                                     sizeof(int32_t),
+                                                     nullable,
+                                                     chunk_mmap_guard);
+        case milvus::DataType::TIME: // ~ponytail
             return std::make_unique<FixedWidthChunk>(row_nums,
                                                      dim,
                                                      data,

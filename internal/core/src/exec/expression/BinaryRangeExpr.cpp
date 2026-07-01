@@ -81,8 +81,13 @@ PhyBinaryRangeFilterExpr::Eval(EvalCtx& context, VectorPtr& result) {
             result = ExecRangeVisitorImpl<int32_t>(context);
             break;
         }
-        case DataType::INT64: {
+        case DataType::INT64:
+        case DataType::TIME: { // ~ponytail
             result = ExecRangeVisitorImpl<int64_t>(context);
+            break;
+        }
+        case DataType::DATE: { // ~ponytail
+            result = ExecRangeVisitorImpl<int32_t>(context);
             break;
         }
         case DataType::FLOAT: {

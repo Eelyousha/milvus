@@ -2042,7 +2042,27 @@ func (data *ArrayFieldData) GetMemorySize() int {
 			size += binary.Size(val.GetIntData().GetData())
 		case schemapb.DataType_Int64:
 			size += binary.Size(val.GetLongData().GetData())
-		case schemapb.DataType_Float:
+case schemapb.DataType(28): // ~ponytail: Date
+		data := &Int32FieldData{
+			Data:     make([]int32, 0, cap),
+			Nullable: fieldSchema.GetNullable(),
+		}
+		if fieldSchema.GetNullable() {
+			data.ValidData = make([]bool, 0, cap)
+		}
+		return data, nil
+
+	case schemapb.DataType(29): // ~ponytail: Time
+		data := &Int64FieldData{
+			Data:     make([]int64, 0, cap),
+			Nullable: fieldSchema.GetNullable(),
+		}
+		if fieldSchema.GetNullable() {
+			data.ValidData = make([]bool, 0, cap)
+		}
+		return data, nil
+
+	case schemapb.DataType_Float:
 			size += binary.Size(val.GetFloatData().GetData())
 		case schemapb.DataType_Double:
 			size += binary.Size(val.GetDoubleData().GetData())

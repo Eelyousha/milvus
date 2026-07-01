@@ -212,6 +212,98 @@ func (c *ColumnDouble) Slice(start, end int) Column {
 	}
 }
 
+/* Date */
+var _ Column = (*ColumnDate)(nil)
+
+type ColumnDate struct {
+	*genericColumnBase[int32]
+}
+
+func NewColumnDate(name string, values []int32) *ColumnDate {
+	return &ColumnDate{
+		genericColumnBase: &genericColumnBase[int32]{
+			name:      name,
+			fieldType: entity.FieldTypeDate,
+			values:    values,
+		},
+	}
+}
+
+func (c *ColumnDate) Slice(start, end int) Column {
+	return &ColumnDate{
+		genericColumnBase: c.genericColumnBase.slice(start, end),
+	}
+}
+
+/* Time */
+var _ Column = (*ColumnTime)(nil)
+
+type ColumnTime struct {
+	*genericColumnBase[int64]
+}
+
+func NewColumnTime(name string, values []int64) *ColumnTime {
+	return &ColumnTime{
+		genericColumnBase: &genericColumnBase[int64]{
+			name:      name,
+			fieldType: entity.FieldTypeTime,
+			values:    values,
+		},
+	}
+}
+
+func (c *ColumnTime) Slice(start, end int) Column {
+	return &ColumnTime{
+		genericColumnBase: c.genericColumnBase.slice(start, end),
+	}
+}
+
+/* Date ISO String */
+var _ Column = (*ColumnDateIsoString)(nil)
+
+type ColumnDateIsoString struct {
+	*genericColumnBase[string]
+}
+
+func NewColumnDateIsoString(name string, values []string) *ColumnDateIsoString {
+	return &ColumnDateIsoString{
+		genericColumnBase: &genericColumnBase[string]{
+			name:      name,
+			fieldType: entity.FieldTypeDate,
+			values:    values,
+		},
+	}
+}
+
+func (c *ColumnDateIsoString) Slice(start, end int) Column {
+	return &ColumnDateIsoString{
+		genericColumnBase: c.genericColumnBase.slice(start, end),
+	}
+}
+
+/* Time ISO String */
+var _ Column = (*ColumnTimeIsoString)(nil)
+
+type ColumnTimeIsoString struct {
+	*genericColumnBase[string]
+}
+
+func NewColumnTimeIsoString(name string, values []string) *ColumnTimeIsoString {
+	return &ColumnTimeIsoString{
+		genericColumnBase: &genericColumnBase[string]{
+			name:      name,
+			fieldType: entity.FieldTypeTime,
+			values:    values,
+		},
+	}
+}
+
+func (c *ColumnTimeIsoString) Slice(start, end int) Column {
+	return &ColumnTimeIsoString{
+		genericColumnBase: c.genericColumnBase.slice(start, end),
+	}
+}
+
 /* Timestamptz */
 var _ Column = (*ColumnTimestamptz)(nil)
 

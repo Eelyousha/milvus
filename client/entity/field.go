@@ -48,6 +48,10 @@ func (t FieldType) Name() string {
 		return "Double"
 	case FieldTypeTimestamptz:
 		return "Timestamptz"
+	case FieldTypeDate:
+		return "Date"
+	case FieldTypeTime:
+		return "Time"
 	case FieldTypeString:
 		return "String"
 	case FieldTypeVarChar:
@@ -92,6 +96,10 @@ func (t FieldType) String() string {
 		return "float64"
 	case FieldTypeTimestamptz:
 		return "timestamptz"
+	case FieldTypeDate:
+		return "date" // ~ponytail
+	case FieldTypeTime:
+		return "time" // ~ponytail
 	case FieldTypeString:
 		return "string"
 	case FieldTypeVarChar:
@@ -136,6 +144,10 @@ func (t FieldType) PbFieldType() (string, string) {
 		return "Double", "float64"
 	case FieldTypeTimestamptz:
 		return "Timestamptz", "int64" // Timestamptz
+	case FieldTypeDate:
+		return "Date", "int32" // ~ponytail
+	case FieldTypeTime:
+		return "Time", "int64" // ~ponytail
 	case FieldTypeString:
 		return "String", "string"
 	case FieldTypeVarChar:
@@ -189,6 +201,10 @@ const (
 	FieldTypeGeometry FieldType = 24
 	// FieldTypeTimestamptz field type timestamptz
 	FieldTypeTimestamptz FieldType = 26
+	// FieldTypeDate field type date
+	FieldTypeDate FieldType = 28
+	// FieldTypeTime field type time
+	FieldTypeTime FieldType = 29
 	// FieldTypeBinaryVector field type binary vector
 	FieldTypeBinaryVector FieldType = 100
 	// FieldTypeFloatVector field type float vector
@@ -363,6 +379,14 @@ func (f *Field) WithDefaultValueTimestamptz(defaultValue int64) *Field {
 		},
 	}
 	return f
+}
+
+func (f *Field) WithDefaultValueDate(defaultValue int32) *Field { // ~ponytail
+	return f.WithDefaultValueInt(defaultValue)
+}
+
+func (f *Field) WithDefaultValueTime(defaultValue int64) *Field { // ~ponytail
+	return f.WithDefaultValueLong(defaultValue)
 }
 
 func (f *Field) WithDefaultValueString(defaultValue string) *Field {

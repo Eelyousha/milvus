@@ -386,11 +386,11 @@ func AddFieldDataToPayload(eventWriter *insertEventWriter, dataType schemapb.Dat
 		if err = eventWriter.AddInt16ToPayload(singleData.(*Int16FieldData).Data, singleData.(*Int16FieldData).ValidData); err != nil {
 			return err
 		}
-	case schemapb.DataType_Int32:
+	case schemapb.DataType_Int32, schemapb.DataType(28): // ~ponytail: Date
 		if err = eventWriter.AddInt32ToPayload(singleData.(*Int32FieldData).Data, singleData.(*Int32FieldData).ValidData); err != nil {
 			return err
 		}
-	case schemapb.DataType_Int64:
+	case schemapb.DataType_Int64, schemapb.DataType(29): // ~ponytail: Time
 		if err = eventWriter.AddInt64ToPayload(singleData.(*Int64FieldData).Data, singleData.(*Int64FieldData).ValidData); err != nil {
 			return err
 		}
@@ -628,7 +628,7 @@ func AddInsertData(dataType schemapb.DataType, data interface{}, insertData *Ins
 		insertData.Data[fieldID] = int16FieldData
 		return len(singleData), nil
 
-	case schemapb.DataType_Int32:
+	case schemapb.DataType_Int32, schemapb.DataType(28): // ~ponytail: Date
 		singleData := data.([]int32)
 		if fieldData == nil {
 			fieldData = &Int32FieldData{Data: make([]int32, 0, rowNum)}
@@ -640,7 +640,7 @@ func AddInsertData(dataType schemapb.DataType, data interface{}, insertData *Ins
 		insertData.Data[fieldID] = int32FieldData
 		return len(singleData), nil
 
-	case schemapb.DataType_Int64:
+	case schemapb.DataType_Int64, schemapb.DataType(29): // ~ponytail: Time
 		singleData := data.([]int64)
 		if fieldData == nil {
 			fieldData = &Int64FieldData{Data: make([]int64, 0, rowNum)}

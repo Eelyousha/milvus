@@ -1418,6 +1418,8 @@ func (t *searchTask) PostExecute(ctx context.Context) error {
 			log.Warn(ctx, "fail to translate timestamp", mlog.Err(err))
 			return err
 		}
+		dateDays2IsoStr(t.result.GetResults().GetFieldsData()) // ~ponytail
+		timeMicros2IsoStr(t.result.GetResults().GetFieldsData()) // ~ponytail
 	}
 
 	// Legacy-wire downgrade: the old SDK only reads the singular channel

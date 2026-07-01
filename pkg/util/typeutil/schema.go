@@ -149,6 +149,10 @@ func estimateSizeBy(schema *schemapb.CollectionSchema, policy getVariableFieldLe
 			res += 4
 		case schemapb.DataType_Int64, schemapb.DataType_Double, schemapb.DataType_Timestamptz:
 			res += 8
+		case schemapb.DataType(28): // ~ponytail: Date
+			res += 4
+		case schemapb.DataType(29): // ~ponytail: Time
+			res += 8
 		case schemapb.DataType_VarChar, schemapb.DataType_Text, schemapb.DataType_Array, schemapb.DataType_JSON, schemapb.DataType_Geometry:
 			maxLengthPerRow, err := getVarFieldLength(fs, policy)
 			if err != nil {
@@ -252,8 +256,10 @@ func CalcScalarSize(column *schemapb.FieldData) int {
 		res += len(column.GetScalars().GetFloatData().GetData()) * 4
 	case schemapb.DataType_Double:
 		res += len(column.GetScalars().GetDoubleData().GetData()) * 8
-	case schemapb.DataType_Timestamptz:
-		res += len(column.GetScalars().GetTimestamptzData().GetData()) * 8
+	case schemapb.DataType(28): // ~ponytail: Date
+		res += len(column.GetScalars().GetIntData().GetData()) * 4
+	case schemapb.DataType(29): // ~ponytail: Time
+		res += len(column.GetScalars().GetLongData().GetData()) * 8
 	case schemapb.DataType_VarChar, schemapb.DataType_Text:
 		for _, str := range column.GetScalars().GetStringData().GetData() {
 			res += len(str)
@@ -725,6 +731,14 @@ func IsTimestamptzType(dataType schemapb.DataType) bool {
 	return dataType == schemapb.DataType_Timestamptz
 }
 
+func IsDateType(dataType schemapb.DataType) bool {
+	return dataType == schemapb.DataType(28) // ~ponytail: pending proto enum
+}
+
+func IsTimeType(dataType schemapb.DataType) bool {
+	return dataType == schemapb.DataType(29) // ~ponytail: pending proto enum
+}
+
 func IsArrayType(dataType schemapb.DataType) bool {
 	return dataType == schemapb.DataType_Array
 }
@@ -785,7 +799,7 @@ func IsVariableDataType(dataType schemapb.DataType) bool {
 }
 
 func IsPrimitiveType(dataType schemapb.DataType) bool {
-	return IsArithmetic(dataType) || IsStringType(dataType) || IsBoolType(dataType) || IsTimestamptzType(dataType)
+	return IsArithmetic(dataType) || IsStringType(dataType) || IsBoolType(dataType) || IsTimestamptzType(dataType) || IsDateType(dataType) || IsTimeType(dataType)
 }
 
 // PrepareResultFieldData construct this slice fo FieldData for final result reduce

@@ -58,6 +58,7 @@ import (
 	"github.com/milvus-io/milvus/pkg/v3/util/commonpbutil"
 	"github.com/milvus-io/milvus/pkg/v3/util/contextutil"
 	"github.com/milvus-io/milvus/pkg/v3/util/crypto"
+	"github.com/milvus-io/milvus/pkg/v3/util/datetime"
 	"github.com/milvus-io/milvus/pkg/v3/util/funcutil"
 	"github.com/milvus-io/milvus/pkg/v3/util/merr"
 	"github.com/milvus-io/milvus/pkg/v3/util/metric"
@@ -3265,9 +3266,7 @@ func getColTimezone(colInfo *collectionInfo) string {
 }
 
 // timestamptzUTC2IsoStr converts Timestamptz (Unix Microsecond) data
-// within FieldData results into ISO-8601 strings, applying the correct
-// timezone offset and using the optimized format (microsecond precision, no trailing zeros).
-func timestamptzUTC2IsoStr(results []*schemapb.FieldData, colTimezone string) error {
+// within FieldData results into ISO-8601 strings
 	location, err := time.LoadLocation(colTimezone)
 	if err != nil {
 		mlog.Error(context.TODO(), "invalid timezone", mlog.String("timezone", colTimezone), mlog.Err(err))
@@ -3314,6 +3313,48 @@ func timestamptzUTC2IsoStr(results []*schemapb.FieldData, colTimezone string) er
 		}
 	}
 	return nil
+}
+
+// ~ponytail: convert DATE fields (int32 days) to ISO date strings
+func dateDays2IsoStr(results []*schemapb.FieldData) {
+	for _, fieldData := range results {
+		if fieldData.GetType() != schemapb.DataType(28) {
+			continue
+		}
+		scalarField := fieldData.GetScalars()
+		if scalarField == nil || scalarField.GetIntData() == nil {
+			continue
+		}
+		days := scalarField.GetIntData().GetData()
+		isoStrings := make([]string, len(days))
+		for i, d := range days {
+			isoStrings[i] = datetime.DateDaysToISO(d)
+		}
+		fieldData.GetScalars().Data = &schemapb.ScalarField_StringData{
+			StringData: &schemapb.StringArray{Data: isoStrings},
+		}
+	}
+}
+
+// ~ponytail: convert TIME fields (int64 micros) to ISO time strings
+func timeMicros2IsoStr(results []*schemapb.FieldData) {
+	for _, fieldData := range results {
+		if fieldData.GetType() != schemapb.DataType(29) {
+			continue
+		}
+		scalarField := fieldData.GetScalars()
+		if scalarField == nil || scalarField.GetLongData() == nil {
+			continue
+		}
+		micros := scalarField.GetLongData().GetData()
+		isoStrings := make([]string, len(micros))
+		for i, m := range micros {
+			isoStrings[i] = datetime.TimeMicrosToISO(m)
+		}
+		fieldData.GetScalars().Data = &schemapb.ScalarField_StringData{
+			StringData: &schemapb.StringArray{Data: isoStrings},
+		}
+	}
 }
 
 // extractFields is a helper function to extract specific integer fields from a time.Time object.

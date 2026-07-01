@@ -263,6 +263,18 @@ AddPayloadToArrowBuilder(std::shared_ptr<arrow::ArrayBuilder> builder,
                 length);
             break;
         }
+        case DataType::DATE: { // ~ponytail
+            auto date_data = reinterpret_cast<int32_t*>(raw_data);
+            add_numeric_payload<int32_t, arrow::Date32Builder>(
+                builder, date_data, payload.valid_data, nullable, length);
+            break;
+        }
+        case DataType::TIME: { // ~ponytail
+            auto time_data = reinterpret_cast<int64_t*>(raw_data);
+            add_numeric_payload<int64_t, arrow::Time64Builder>(
+                builder, time_data, payload.valid_data, nullable, length);
+            break;
+        }
 
         case DataType::VECTOR_FLOAT: {
             AssertInfo(payload.dimension.has_value(),
@@ -474,6 +486,13 @@ CreateArrowBuilder(DataType data_type) {
         case DataType::TIMESTAMPTZ: {
             return std::make_shared<arrow::Int64Builder>();
         }
+        case DataType::DATE: { // ~ponytail
+            return std::make_shared<arrow::Date32Builder>();
+        }
+        case DataType::TIME: { // ~ponytail
+            return std::make_shared<arrow::Time64Builder>(
+                arrow::Time64Type(arrow::TimeUnit::MICRO));
+        }
         case DataType::VARCHAR:
         case DataType::STRING:
         case DataType::TEXT: {
@@ -634,6 +653,13 @@ CreateArrowScalarFromDefaultValue(const FieldMeta& field_meta) {
         case DataType::TIMESTAMPTZ:
             return std::make_shared<arrow::Int64Scalar>(
                 default_value.timestamptz_data());
+        case DataType::DATE: // ~ponytail
+            return std::make_shared<arrow::Date32Scalar>(
+                default_value.int_data());
+        case DataType::TIME: // ~ponytail
+            return std::make_shared<arrow::Time64Scalar>(
+                arrow::Time64Type(arrow::TimeUnit::MICRO),
+                default_value.long_data());
         case DataType::VARCHAR:
         case DataType::STRING:
         case DataType::TEXT:
@@ -683,6 +709,16 @@ CreateArrowSchema(DataType data_type, bool nullable) {
         case DataType::TIMESTAMPTZ: {
             return arrow::schema(
                 {arrow::field("val", arrow::int64(), nullable)});
+        }
+        case DataType::DATE: { // ~ponytail
+            return arrow::schema(
+                {arrow::field("val", arrow::date32(), nullable)});
+        }
+        case DataType::TIME: { // ~ponytail
+            return arrow::schema(
+                {arrow::field("val",
+                              arrow::time64(arrow::TimeUnit::MICRO),
+                              nullable)});
         }
         case DataType::VARCHAR:
         case DataType::STRING:
@@ -1247,7 +1283,11 @@ CreateFieldData(const DataType& type,
             return std::make_shared<FieldData<double>>(
                 type, nullable, total_num_rows);
         case DataType::TIMESTAMPTZ:
+        case DataType::TIME: // ~ponytail
             return std::make_shared<FieldData<int64_t>>(
+                type, nullable, total_num_rows);
+        case DataType::DATE: // ~ponytail
+            return std::make_shared<FieldData<int32_t>>(
                 type, nullable, total_num_rows);
         case DataType::STRING:
         case DataType::VARCHAR:
@@ -3074,6 +3114,21 @@ NormalizeExternalArrowByType(const std::shared_ptr<arrow::Array>& array_in,
             return array;
         }
         AssertExternalArrowType(array, "timestamp or int64", field_meta);
+    }
+
+    if (data_type == DataType::DATE) { // ~ponytail
+        if (type_id == arrow::Type::DATE32 ||
+            type_id == arrow::Type::INT32) {
+            return array;
+        }
+        AssertExternalArrowType(array, "date32 or int32", field_meta);
+    }
+
+    if (data_type == DataType::TIME) { // ~ponytail
+        if (type_id == arrow::Type::INT64) {
+            return array;
+        }
+        AssertExternalArrowType(array, "time64 or int64", field_meta);
     }
 
     ValidateScalarArrowType(data_type, array, field_meta);

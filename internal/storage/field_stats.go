@@ -95,11 +95,11 @@ func (stats *FieldStats) UnmarshalJSON(data []byte) error {
 		stats.Max = &Int16FieldValue{}
 		stats.Min = &Int16FieldValue{}
 		isScalarField = true
-	case schemapb.DataType_Int32:
+	case schemapb.DataType_Int32, schemapb.DataType(28): // ~ponytail: Date
 		stats.Max = &Int32FieldValue{}
 		stats.Min = &Int32FieldValue{}
 		isScalarField = true
-	case schemapb.DataType_Int64, schemapb.DataType_Timestamptz:
+	case schemapb.DataType_Int64, schemapb.DataType_Timestamptz, schemapb.DataType(29): // ~ponytail: Time
 		stats.Max = &Int64FieldValue{}
 		stats.Min = &Int64FieldValue{}
 		isScalarField = true
@@ -234,7 +234,7 @@ func (stats *FieldStats) UpdateByMsgs(msgs FieldData) {
 			common.Endian.PutUint64(b, uint64(int16Value))
 			stats.BF.Add(b)
 		}
-	case schemapb.DataType_Int32:
+	case schemapb.DataType_Int32, schemapb.DataType(28): // ~ponytail: Date
 		data := msgs.(*Int32FieldData).Data
 		// return error: msgs must has one element at least
 		if len(data) < 1 {
@@ -247,7 +247,7 @@ func (stats *FieldStats) UpdateByMsgs(msgs FieldData) {
 			common.Endian.PutUint64(b, uint64(int32Value))
 			stats.BF.Add(b)
 		}
-	case schemapb.DataType_Int64:
+	case schemapb.DataType_Int64, schemapb.DataType(29): // ~ponytail: Time
 		data := msgs.(*Int64FieldData).Data
 		// return error: msgs must has one element at least
 		if len(data) < 1 {
@@ -344,7 +344,7 @@ func (stats *FieldStats) Update(pk ScalarFieldValue) {
 		b := make([]byte, 8)
 		common.Endian.PutUint64(b, uint64(data))
 		stats.BF.Add(b)
-	case schemapb.DataType_Int64, schemapb.DataType_Timestamptz:
+	case schemapb.DataType_Int64, schemapb.DataType_Timestamptz, schemapb.DataType(29): // ~ponytail: Time
 		data := pk.GetValue().(int64)
 		b := make([]byte, 8)
 		common.Endian.PutUint64(b, uint64(data))

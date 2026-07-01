@@ -505,8 +505,10 @@ GetAggResultType(std::string func_name, DataType input_type) {
             case DataType::INT64: {
                 return DataType::INT64;
             }
-            case DataType::TIMESTAMPTZ: {
-                return DataType::TIMESTAMPTZ;
+            case DataType::TIMESTAMPTZ:
+            case DataType::DATE:
+            case DataType::TIME: {
+                return input_type; // ~ponytail: preserves DATE/TIME in sum
             }
             case DataType::FLOAT: {
                 return DataType::DOUBLE;
@@ -527,6 +529,8 @@ GetAggResultType(std::string func_name, DataType input_type) {
             case DataType::INT16:
             case DataType::INT32:
             case DataType::INT64:
+            case DataType::DATE:
+            case DataType::TIME:
             case DataType::FLOAT:
             case DataType::DOUBLE: {
                 return DataType::DOUBLE;
@@ -551,7 +555,9 @@ GetAggResultType(std::string func_name, DataType input_type) {
             case DataType::VARCHAR:
             case DataType::STRING:
             case DataType::TEXT:
-            case DataType::TIMESTAMPTZ: {
+            case DataType::TIMESTAMPTZ:
+            case DataType::DATE:
+            case DataType::TIME: {
                 return input_type;
             }
             default: {

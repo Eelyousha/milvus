@@ -12,6 +12,7 @@ import (
 	"github.com/milvus-io/milvus/internal/util/nullutil"
 	"github.com/milvus-io/milvus/pkg/v3/common"
 	"github.com/milvus-io/milvus/pkg/v3/mlog"
+	"github.com/milvus-io/milvus/pkg/v3/util/datetime"
 	"github.com/milvus-io/milvus/pkg/v3/util/funcutil"
 	"github.com/milvus-io/milvus/pkg/v3/util/merr"
 	"github.com/milvus-io/milvus/pkg/v3/util/parameterutil"
@@ -185,6 +186,14 @@ func (v *validateUtil) Validate(data []*schemapb.FieldData, helper *typeutil.Sch
 			panic("unreachable, array of struct should have been flattened")
 		case schemapb.DataType_Timestamptz:
 			if err := v.checkTimestamptzFieldData(field, helper.GetTimezone()); err != nil {
+				return err
+			}
+		case schemapb.DataType(28): // ~ponytail: Date
+			if err := v.checkDateFieldData(field); err != nil {
+				return err
+			}
+		case schemapb.DataType(29): // ~ponytail: Time
+			if err := v.checkTimeFieldData(field); err != nil {
 				return err
 			}
 		default:
@@ -1350,6 +1359,50 @@ func (v *validateUtil) checkTimestamptzFieldData(field *schemapb.FieldData, time
 		TimestamptzData: &schemapb.TimestamptzArray{
 			Data: utcTimestamps,
 		},
+	}
+	return nil
+}
+
+// ~ponytail: validate and convert date strings to int32 days
+func (v *validateUtil) checkDateFieldData(field *schemapb.FieldData) error {
+	scalarField := field.GetScalars()
+	if scalarField == nil || scalarField.GetStringData() == nil {
+		log.Warn("date field data is not string array", zap.String("fieldName", field.GetFieldName()))
+		return merr.WrapErrParameterInvalidMsg("date field data must be a string array")
+	}
+	stringData := scalarField.GetStringData().GetData()
+	days := make([]int32, len(stringData))
+	for i, s := range stringData {
+		d, err := datetime.ParseDateISO(s)
+		if err != nil {
+			return merr.WrapErrParameterInvalidMsg("invalid date string: %q", s)
+		}
+		days[i] = d
+	}
+	field.GetScalars().Data = &schemapb.ScalarField_IntData{
+		IntData: &schemapb.IntArray{Data: days},
+	}
+	return nil
+}
+
+// ~ponytail: validate and convert time strings to int64 micros since midnight
+func (v *validateUtil) checkTimeFieldData(field *schemapb.FieldData) error {
+	scalarField := field.GetScalars()
+	if scalarField == nil || scalarField.GetStringData() == nil {
+		log.Warn("time field data is not string array", zap.String("fieldName", field.GetFieldName()))
+		return merr.WrapErrParameterInvalidMsg("time field data must be a string array")
+	}
+	stringData := scalarField.GetStringData().GetData()
+	micros := make([]int64, len(stringData))
+	for i, s := range stringData {
+		m, err := datetime.ParseTimeISO(s)
+		if err != nil {
+			return merr.WrapErrParameterInvalidMsg("invalid time string: %q", s)
+		}
+		micros[i] = m
+	}
+	field.GetScalars().Data = &schemapb.ScalarField_LongData{
+		LongData: &schemapb.LongArray{Data: micros},
 	}
 	return nil
 }

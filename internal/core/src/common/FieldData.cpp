@@ -248,6 +248,30 @@ FieldDataImpl<Type, is_type_entire_row>::FillFieldData(
             }
             return FillFieldData(array_info.first, array_info.second);
         }
+        case DataType::DATE: { // ~ponytail
+            auto array_info =
+                GetDataInfoFromArray<arrow::Date32Array,
+                                     arrow::Type::type::DATE32>(array);
+            if (nullable_) {
+                return FillFieldData(array_info.first,
+                                     array->null_bitmap_data(),
+                                     element_count,
+                                     array->offset());
+            }
+            return FillFieldData(array_info.first, array_info.second);
+        }
+        case DataType::TIME: { // ~ponytail
+            auto array_info =
+                GetDataInfoFromArray<arrow::Time64Array,
+                                     arrow::Type::type::TIME64>(array);
+            if (nullable_) {
+                return FillFieldData(array_info.first,
+                                     array->null_bitmap_data(),
+                                     element_count,
+                                     array->offset());
+            }
+            return FillFieldData(array_info.first, array_info.second);
+        }
         case DataType::STRING:
         case DataType::VARCHAR: {
             AssertInfo(array->type()->id() == arrow::Type::type::STRING,
@@ -592,6 +616,26 @@ FieldDataImpl<Type, is_type_entire_row>::FillFieldData(
                 std::fill(values.begin(),
                           values.end(),
                           default_value->timestamptz_data());
+                return FillFieldData(values.data(), nullptr, element_count, 0);
+            }
+            return FillFieldData(
+                values.data(), valid_data_ptr.get(), element_count, 0);
+        }
+        case DataType::DATE: { // ~ponytail: default in ValueField.int_data
+            FixedVector<int32_t> values(element_count);
+            if (default_value.has_value()) {
+                std::fill(values.begin(), values.end(),
+                          default_value->int_data());
+                return FillFieldData(values.data(), nullptr, element_count, 0);
+            }
+            return FillFieldData(
+                values.data(), valid_data_ptr.get(), element_count, 0);
+        }
+        case DataType::TIME: { // ~ponytail: default in ValueField.long_data
+            FixedVector<int64_t> values(element_count);
+            if (default_value.has_value()) {
+                std::fill(values.begin(), values.end(),
+                          default_value->long_data());
                 return FillFieldData(values.data(), nullptr, element_count, 0);
             }
             return FillFieldData(

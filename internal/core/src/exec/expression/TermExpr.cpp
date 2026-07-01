@@ -86,12 +86,14 @@ PhyTermFilterExpr::Eval(EvalCtx& context, VectorPtr& result) {
             result = ExecVisitorImpl<int16_t>(context);
             break;
         }
-        case DataType::INT32: {
+        case DataType::INT32:
+        case DataType::DATE: { // ~ponytail
             result = ExecVisitorImpl<int32_t>(context);
             break;
         }
         case DataType::INT64:
-        case DataType::TIMESTAMPTZ: {
+        case DataType::TIMESTAMPTZ:
+        case DataType::TIME: { // ~ponytail
             result = ExecVisitorImpl<int64_t>(context);
             break;
         }

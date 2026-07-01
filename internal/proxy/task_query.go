@@ -1048,6 +1048,8 @@ func (t *queryTask) PostExecute(ctx context.Context) error {
 				log.Warn(ctx, "fail to translate timestamp", mlog.Err(err))
 				return err
 			}
+			dateDays2IsoStr(t.result.GetFieldsData()) // ~ponytail
+			timeMicros2IsoStr(t.result.GetFieldsData()) // ~ponytail
 		}
 	}
 	log.Debug(ctx, "Query PostExecute done")

@@ -343,6 +343,12 @@ func FieldDataColumn(fd *schemapb.FieldData, begin, end int) (Column, error) {
 	case schemapb.DataType_Timestamptz:
 		return parseScalarData(fd.GetFieldName(), fd.GetScalars().GetStringData().GetData(), begin, end, validData, NewColumnTimestamptzIsoString, NewNullableColumnTimestamptzIsoString)
 
+	case schemapb.DataType(28): // ~ponytail: Date
+		return parseScalarData(fd.GetFieldName(), fd.GetScalars().GetStringData().GetData(), begin, end, validData, NewColumnDateIsoString, NewNullableColumnDateIsoString)
+
+	case schemapb.DataType(29): // ~ponytail: Time
+		return parseScalarData(fd.GetFieldName(), fd.GetScalars().GetStringData().GetData(), begin, end, validData, NewColumnTimeIsoString, NewNullableColumnTimeIsoString)
+
 	case schemapb.DataType_String:
 		return parseScalarData(fd.GetFieldName(), fd.GetScalars().GetStringData().GetData(), begin, end, validData, NewColumnString, NewNullableColumnString)
 

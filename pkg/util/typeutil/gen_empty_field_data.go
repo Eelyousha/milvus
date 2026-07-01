@@ -301,6 +301,10 @@ func GenEmptyFieldData(field *schemapb.FieldSchema) (*schemapb.FieldData, error)
 		return genEmptyDoubleFieldData(field), nil
 	case schemapb.DataType_Timestamptz:
 		return genEmptyLongFieldData(field), nil
+	case schemapb.DataType(28): // ~ponytail: Date
+		return genEmptyIntFieldData(field), nil
+	case schemapb.DataType(29): // ~ponytail: Time
+		return genEmptyLongFieldData(field), nil
 	case schemapb.DataType_VarChar, schemapb.DataType_Text:
 		return genEmptyVarCharFieldData(field), nil
 	case schemapb.DataType_Array:
