@@ -1167,6 +1167,9 @@ struct fmt::formatter<milvus::OpType> : formatter<string_view> {
             case milvus::OpType::RegexMatch:
                 name = "RegexMatch";
                 break;
+            case milvus::OpType::TextMatchFuzzy:
+                name = "TextMatchFuzzy";
+                break;
         }
         return formatter<string_view>::format(name, ctx);
     }
