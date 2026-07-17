@@ -114,13 +114,20 @@ func ValidateTextRequiresStorageV3(schema *schemapb.CollectionSchema, storageV3E
 	return nil
 }
 
-// UseGrowingSourceFlush returns whether insert payload for the schema should
-// be flushed from QueryNode growing source when available.
-func UseGrowingSourceFlush(schema *schemapb.CollectionSchema, storageV3Enabled bool, enableGrowingSourceFlush bool) bool {
+// AllowGrowingSourceFlush returns whether insert payload for the schema may try
+// flushing from QueryNode growing source when available.
+func AllowGrowingSourceFlush(schema *schemapb.CollectionSchema, storageV3Enabled bool, enableGrowingSourceFlush bool) bool {
 	if !storageV3Enabled {
 		return false
 	}
 	return HasTextField(schema) || enableGrowingSourceFlush
+}
+
+// UseGrowingSourceFlush is kept for compatibility. Prefer
+// AllowGrowingSourceFlush for new code to avoid implying the source choice is
+// mandatory.
+func UseGrowingSourceFlush(schema *schemapb.CollectionSchema, storageV3Enabled bool, enableGrowingSourceFlush bool) bool {
+	return AllowGrowingSourceFlush(schema, storageV3Enabled, enableGrowingSourceFlush)
 }
 
 // EstimateSizePerRecord returns the estimate size of a record in a collection
@@ -4081,9 +4088,25 @@ func IsBM25FunctionOutputField(field *schemapb.FieldSchema, collSchema *schemapb
 }
 
 func IsBm25FunctionInputField(coll *schemapb.CollectionSchema, field *schemapb.FieldSchema) bool {
+	if coll == nil || field == nil {
+		return false
+	}
 	for _, fn := range coll.GetFunctions() {
-		if fn.GetType() == schemapb.FunctionType_BM25 && field.GetName() == fn.GetInputFieldNames()[0] {
-			return true
+		if fn.GetType() != schemapb.FunctionType_BM25 {
+			continue
+		}
+		if field.GetFieldID() != 0 && len(fn.GetInputFieldIds()) > 0 {
+			for _, id := range fn.GetInputFieldIds() {
+				if field.GetFieldID() == id {
+					return true
+				}
+			}
+			continue
+		}
+		for _, name := range fn.GetInputFieldNames() {
+			if field.GetName() == name {
+				return true
+			}
 		}
 	}
 	return false

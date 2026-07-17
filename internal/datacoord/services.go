@@ -530,15 +530,14 @@ func (s *Server) GetSegmentInfo(ctx context.Context, req *datapb.GetSegmentInfoR
 				return resp, nil
 			}
 
-			// We should retrieve the deltalog of all child segments,
-			// but due to the compaction constraint based on indexed segment, there will be at most two generations.
-			allChildrenDeltalogs, err := s.handler.GetDeltaLogFromCompactTo(ctx, id)
-			if err != nil {
+			// Fallback loading keeps the parent segment identity, but the delete
+			// sources produced by compact-to descendants must be overlaid on the
+			// cloned response so QueryNode can filter rows deleted after compaction.
+			clonedInfo := info.Clone()
+			if err := s.appendCompactToDeleteSources(ctx, clonedInfo, id); err != nil {
 				resp.Status = merr.Status(err)
 				return resp, nil
 			}
-			clonedInfo := info.Clone()
-			clonedInfo.Deltalogs = append(clonedInfo.Deltalogs, allChildrenDeltalogs...)
 			segmentutil.ReCalcRowCount(info.SegmentInfo, clonedInfo.SegmentInfo)
 			infos = append(infos, clonedInfo.SegmentInfo)
 		} else {
@@ -560,6 +559,39 @@ func (s *Server) GetSegmentInfo(ctx context.Context, req *datapb.GetSegmentInfoR
 	resp.Infos = infos
 	resp.ChannelCheckpoint = channelCPs
 	return resp, nil
+}
+
+// appendCompactToDeleteSources mutates clonedInfo with delete sources from all
+// compact-to descendants of segmentID. Manifest-backed descendants stay as
+// manifest paths; legacy descendants contribute decompressed deltalog entries.
+func (s *Server) appendCompactToDeleteSources(ctx context.Context, clonedInfo *SegmentInfo, segmentID UniqueID) error {
+	children, ok := s.meta.GetCompactionTo(segmentID)
+	if !ok {
+		mlog.Warn(ctx, "failed to get segment, this may have been cleaned",
+			mlog.Int64("segmentID", segmentID))
+		return merr.WrapErrSegmentNotFound(segmentID)
+	}
+
+	for _, child := range children {
+		// Keep each child delete source in its native representation. QueryNode
+		// merges both manifest-backed and legacy delete data during segment load.
+		if child.GetManifestPath() != "" {
+			clonedInfo.ChildManifestPaths = append(clonedInfo.ChildManifestPaths, child.GetManifestPath())
+		} else {
+			clonedChild := child.Clone()
+			if err := binlog.DecompressBinLog(storage.DeleteBinlog, clonedChild.GetCollectionID(), clonedChild.GetPartitionID(), clonedChild.GetID(), clonedChild.GetDeltalogs()); err != nil {
+				mlog.Warn(ctx, "failed to decompress delta binlog",
+					mlog.Int64("segmentID", clonedChild.GetID()), mlog.Err(err))
+				return err
+			}
+			clonedInfo.Deltalogs = append(clonedInfo.Deltalogs, clonedChild.GetDeltalogs()...)
+		}
+
+		if err := s.appendCompactToDeleteSources(ctx, clonedInfo, child.GetID()); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // SaveBinlogPaths updates segment related binlog path
@@ -626,13 +658,13 @@ func (s *Server) SaveBinlogPaths(ctx context.Context, req *datapb.SaveBinlogPath
 			mlog.Warn(context.TODO(), "failed to get segment, the segment not healthy", mlog.Err(err))
 			return merr.Status(err), nil
 		}
-		if err := s.validateTextSegmentStorage(req); err != nil {
+		incomingStorageVersion := req.GetStorageVersion()
+		if err := s.validateTextSegmentStorage(req, incomingStorageVersion); err != nil {
 			mlog.Warn(context.TODO(), "invalid TEXT segment storage format", mlog.Err(err))
 			return merr.Status(err), nil
 		}
 
-		// Set storage version
-		operators = append(operators, SetStorageVersion(req.GetSegmentID(), req.GetStorageVersion()))
+		operators = append(operators, ValidateSaveBinlogStorageVersion(req.GetSegmentID(), incomingStorageVersion))
 
 		// Set segment state
 		if req.GetDropped() {
@@ -721,18 +753,18 @@ func (s *Server) SaveBinlogPaths(ctx context.Context, req *datapb.SaveBinlogPath
 	return merr.Success(), nil
 }
 
-func (s *Server) validateTextSegmentStorage(req *datapb.SaveBinlogPathsRequest) error {
+func (s *Server) validateTextSegmentStorage(req *datapb.SaveBinlogPathsRequest, storageVersion int64) error {
 	if req.GetSegLevel() == datapb.SegmentLevel_L0 || req.GetDropped() {
 		return nil
 	}
 	if !s.meta.collectionHasTextFields(req.GetCollectionID()) {
 		return nil
 	}
-	if req.GetStorageVersion() < storage.StorageV3 {
+	if storageVersion < storage.StorageV3 {
 		return merr.WrapErrParameterInvalidMsg(
 			"TEXT segment %d must be saved with StorageV3 manifest, got storage version %d",
 			req.GetSegmentID(),
-			req.GetStorageVersion())
+			storageVersion)
 	}
 	if req.GetManifestPath() == "" {
 		return merr.WrapErrParameterInvalidMsg(
@@ -2202,6 +2234,7 @@ func (s *Server) CreateSnapshot(ctx context.Context, req *datapb.CreateSnapshotR
 		}).
 		WithBody(&message.CreateSnapshotMessageBody{}).
 		WithBroadcast([]string{streaming.WAL().ControlChannel()}).
+		WithUnreplicable().
 		MustBuildBroadcast(),
 	); err != nil {
 		mlog.Error(context.TODO(), "CreateSnapshot broadcast failed", mlog.Err(err))
@@ -2252,6 +2285,7 @@ func (s *Server) BatchUpdateManifest(ctx context.Context, req *datapb.BatchUpdat
 			Items: items,
 		}).
 		WithBroadcast([]string{streaming.WAL().ControlChannel()}).
+		WithUnreplicable().
 		MustBuildBroadcast(),
 	); err != nil {
 		mlog.Error(context.TODO(), "BatchUpdateManifest broadcast failed", mlog.Err(err))
@@ -2355,6 +2389,7 @@ func (s *Server) DropSnapshot(ctx context.Context, req *datapb.DropSnapshotReque
 		}).
 		WithBody(&message.DropSnapshotMessageBody{}).
 		WithBroadcast([]string{streaming.WAL().ControlChannel()}).
+		WithUnreplicable().
 		MustBuildBroadcast(),
 	); err != nil {
 		mlog.Error(context.TODO(), "DropSnapshot broadcast failed", mlog.Err(err))
@@ -2712,6 +2747,7 @@ func (s *Server) RefreshExternalCollection(ctx context.Context, req *datapb.Refr
 		}).
 		WithBody(&message.RefreshExternalCollectionMessageBody{}).
 		WithBroadcast([]string{streaming.WAL().ControlChannel()}).
+		WithUnreplicable().
 		MustBuildBroadcast()
 
 	if _, err := b.Broadcast(ctx, msg); err != nil {
